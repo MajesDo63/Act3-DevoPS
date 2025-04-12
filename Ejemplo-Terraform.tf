@@ -13,7 +13,7 @@ resource "aws_vpc" "Act3_VPC" {
 
 # Crear Subredes
 resource "aws_subnet" "public_subnet" {
-  vpc_id                  = aws_vpc.Act_VPC.id 
+  vpc_id                  = aws_vpc.Act3_VPC.id 
   cidr_block              = "10.10.0.0/24" 
   map_public_ip_on_launch = true
 
@@ -120,11 +120,11 @@ resource "aws_security_group" "Linux_WS" {
   }
 
   #HTTP
-  egress = {
+  egress {
     from_port = 80
     to_port = 80
     protocol = "tcp"
-    cidr_block = ["0.0.0.0/0"]
+    cidr_blocks = ["0.0.0.0/0"]
   }
   
 } 
