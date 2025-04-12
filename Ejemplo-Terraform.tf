@@ -1,98 +1,197 @@
 provider "aws" {
-    region = "us-east-1"
+  region = "us-east-1"
 }
 
-#Crear VPC
-resource "aws_vpc" "Mi_vpc" {
-    cidr_block = "10.0.0.0/16" #ip de la vpc del diagrama
-
-    tags = {
-        Name = "VPC-TERRAFORM"
-    }
+# Creación de VPC
+resource "aws_vpc" "Act3_VPC" {
+  cidr_block = "10.10.0.0/20"
+  
+  tags = {
+    Name = "Actividad_3"
+  }
 }
 
-#Crear subred publica
-resource "aws_subnet" "subred_publica" {
-    vpc_id = aws_vpc.Mi_vpc.id  # Cambié 'mi_vpc' a 'Mi_vpc'
-    cidr_block = "10.0.0.0/24"
-    map_public_ip_on_launch = true
+# Crear Subredes
+resource "aws_subnet" "public_subnet" {
+  vpc_id                  = aws_vpc.Act_VPC.id 
+  cidr_block              = "10.10.0.0/24" 
+  map_public_ip_on_launch = true
 
-    tags = {
-        Name = "Guacholo_publica"
-    }
+  tags = {
+    Name = "public_subnet" 
+  }
 }
 
-resource "aws_internet_gateway" "igw" {
-    vpc_id = aws_vpc.Mi_vpc.id  # Cambié 'mi_vpc' a 'Mi_vpc'
+# Crear Internet Gateway
+resource "aws_internet_gateway" "gw" {
+  vpc_id = aws_vpc.Act3_VPC.id
 
-    tags = {
-      Name = "IGW-Terraform"
-    }
+  tags = {
+    Name = "gw-Actividad_3"
+  }
 }
 
-resource "aws_route_table" "tabla_rutas_publicas" {
-    vpc_id = aws_vpc.Mi_vpc.id  # Cambié 'mi_vpc' a 'Mi_vpc'
+# Crear Tabla de Rutas
+resource "aws_route_table" "public_rt" {
+  vpc_id = aws_vpc.Act3_VPC.id 
 
-    route {
-        cidr_block = "0.0.0.0/0" #Permitir salida a internet
-        gateway_id = aws_internet_gateway.igw.id
-    }
+  route {
+    cidr_block = "0.0.0.0/0" 
+    gateway_id = aws_internet_gateway.gw.id
+  }
 
-    tags = {
-      Name = "Tabla_Rutas_publicas"
-    }
+  tags = {
+    Name = "public_rt-Actividad_3" 
+  }
 }
 
-#Asociación de tablas de rutas a subred pública
-resource "aws_route_table_association" "asosiacion_rutas" {
-    subnet_id      = aws_subnet.subred_publica.id
-    route_table_id = aws_route_table.tabla_rutas_publicas.id
+# Asociación de Tabla de Rutas con Subred
+resource "aws_route_table_association" "public_assoc" {
+  subnet_id      = aws_subnet.public_subnet.id 
+  route_table_id = aws_route_table.public_rt.id
 }
 
-#Creación de grupo de seguridad
-resource "aws_security_group" "sg-publico" {
-    vpc_id      = aws_vpc.Mi_vpc.id  # Cambié 'mi_vpc' a 'Mi_vpc'
-    name        = "Grupo-Seguridad_Terraform-Publico"
-    description = "Grupo de seguridad para conectarme al servidor linux por SSH desde Terraform"
+# Crear Grupos de Seguridad
+# SG-Linux-Jumo-Server
+resource "aws_security_group" "Linux_JS" {
+  vpc_id = aws_vpc.Act3_VPC.id 
+  
+  #Reglas de seguridad
+  
+#SSH
+  ingress {
+    from_port   = 22 
+    to_port     = 22
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+  
+  #Reglas de salida
 
-    # Permitir tráfico SSH desde cualquier IP
-    ingress {
-        from_port   = 22
-        to_port     = 22
-        protocol    = "tcp"
-        cidr_blocks = ["0.0.0.0/0"]
-    }
+#SSH
+  egress {
+    from_port = 22
+    to_port = 22
+    protocol = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
 
-    # Permitir tráfico HTTP desde cualquier IP
-    ingress {
-        from_port   = 80
-        to_port     = 80
-        protocol    = "tcp"
-        cidr_blocks = ["0.0.0.0/0"]
-    }
+  #Todo el trafico
+  egress{
+    from_port = 0
+    to_port = 0
+    protocol = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
 
-    egress {
-        from_port   = 0
-        to_port     = 0
-        protocol    = "-1"
-        cidr_blocks = ["0.0.0.0/0"]
-    }
 }
 
-resource "aws_instance" "mi_instancia" {
-    ami                  = "ami-00a929b66ed6e0de6" # Ami de Amazon Linux
-    instance_type        = "t2.micro"
-    subnet_id            = aws_subnet.subred_publica.id
-    # Especificando en qué subred se va a crear la instancia
-    vpc_security_group_ids = [aws_security_group.sg-publico.id]
-    associate_public_ip_address = true
 
-    tags = {
-        Name = "Servidor Linux - Terraform con SG"
-    }
+#SG-Linux-Web-Server
+resource "aws_security_group" "Linux_WS" {
+  vpc_id = aws_vpc.Act3_VPC.id 
+  
+  #Reglas de entrada
+  
+#SSh
+  ingress {
+    from_port   = 22 
+    to_port     = 22
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  #Todo el trafico
+  ingress {
+    from_port = 0
+    to_port = 0
+    protocol = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+  
+  #Reglas de salida
+
+#Todo el trafico
+  egress {
+    from_port = 0
+    to_port = 0
+    protocol = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  #HTTP
+  egress = {
+    from_port = 80
+    to_port = 80
+    protocol = "tcp"
+    cidr_block = ["0.0.0.0/0"]
+  }
+  
+} 
+
+
+# Crear Instancias EC2
+resource "aws_instance" "Linux-Jump-Server" {
+  ami                         = "ami-084568db4383264d4"
+  instance_type               = "t2.micro"
+  subnet_id                   = aws_subnet.public_subnet.id
+  security_groups             = [aws_security_group.Linux_JS.id]
+  associate_public_ip_address = true
+  key_name                    = "vockey"
+  
+  tags = {
+    Name = "Linux-Jump-Server"
+  }
 }
 
-output "public_ip" {
-    description = "IP publica de la instancia Linux"
-    value       = aws_instance.mi_instancia.public_ip
+resource "aws_instance" "Linux-Web-Server1" {
+  ami                         = "ami-084568db4383264d4"
+  instance_type               = "t2.micro"
+  subnet_id                   = aws_subnet.public_subnet.id
+  security_groups = [aws_security_group.Linux_WS.id]
+  associate_public_ip_address = true
+  key_name                    = "vockey"
+  tags = {
+    Name = "Linux-Web-Server1"
+  }
+}
+
+resource "aws_instance" "Linux-Web-Server2" {
+  ami                         = "ami-084568db4383264d4"
+  instance_type               = "t2.micro"
+  subnet_id                   = aws_subnet.public_subnet.id
+  security_groups             = [aws_security_group.Linux_WS.id]
+  associate_public_ip_address = true 
+  key_name                    = "vockey"
+
+  tags = {
+    Name = "Linux-Web-Server2"
+  } 
+}
+
+# Crear Instancias EC2
+resource "aws_instance" "Linux-Web-Server3" {
+  ami                         = "ami-084568db4383264d4"
+  instance_type               = "t2.micro"
+  subnet_id                   = aws_subnet.public_subnet.id
+  security_groups             = [aws_security_group.Linux_WS.id]
+  associate_public_ip_address = true
+  key_name                    = "vockey"
+  
+  tags = {
+    Name = "Linux-Web-Server3"
+  }
+}
+# Crear Instancias EC2
+resource "aws_instance" "Linux-Web-Server4" {
+  ami                         = "ami-084568db4383264d4"
+  instance_type               = "t2.micro"
+  subnet_id                   = aws_subnet.public_subnet.id
+  security_groups             = [aws_security_group.Linux_WS.id]
+  associate_public_ip_address = true
+  key_name                    = "vockey"
+  
+  tags = {
+    Name = "Linux-Web-Server4"
+  }
 }
